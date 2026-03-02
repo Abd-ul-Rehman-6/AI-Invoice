@@ -1,0 +1,210 @@
+body {
+    background: #f0f4f8;
+    display: flex;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    flex-direction: column;
+    align-items: center;
+    overflow-y: hidden;
+}
+
+.header h2 {
+    color: #1e3c72;
+    margin-bottom: 30px;
+}
+
+.profile-card {
+    background: #fff;
+    border-radius: 15px;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+    padding: 30px;
+    text-align: center;
+    width: 400px;
+    max-width: 100%;
+}
+
+.profile-card h3 {
+    color: #1e3c72;
+    margin-bottom: 10px;
+}
+
+.profile-card p {
+    color: #555;
+    margin: 5px 0;
+}
+
+button {
+    margin-top: 20px;
+    padding: 12px 20px;
+    border: none;
+    border-radius: 8px;
+    background: #1e3c72;
+    color: #fff;
+    font-size: 16px;
+    cursor: pointer;
+    transition: all 0.3s;
+}
+
+button:hover {
+    background: #16305a;
+}
+
+.container {
+    display: flex;
+    height: 100vh;
+}
+
+.sidebar {
+    width: 220px;
+    background: #192529;
+    color: #fff;
+    display: flex;
+    flex-direction: column;
+    padding: 80px 80px;
+    box-shadow: 2px 0 10px rgba(0,0,0,0.1);
+}
+
+.sidebar h2 {
+    text-align: right;
+    font-size: 22px;
+    margin-bottom: 30px;
+}
+
+.user-info {
+    text-align: center;
+    margin-bottom: 30px;
+}
+
+.user-info p {
+    margin: 5px 0;
+    font-size: 16px;
+}
+
+.menu button {
+    width: 100%;
+    padding: 12px;
+    border: none;
+    border-radius: 10px;
+    margin-bottom: 15px;
+    font-size: 16px;
+    cursor: pointer;
+    background: rgba(255,255,255,0.2);
+    color: #fff;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    transition: all 0.3s;
+}
+
+.menu button:hover {
+    background: rgba(255,255,255,0.4);
+}
+
+button.logout-btn {
+    background: #e84118;
+}
+button.logout-btn:hover {
+    background: #c23616;
+}
+
+.main-content {
+    flex: 1;
+    padding: 30px 40px;
+    overflow-y: auto;
+}
+
+.content-section {
+    background: #a2b4c2;
+    border-radius: 15px;
+    padding: 25px;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.05);
+    max-width: 700px;
+    margin-bottom: 20px;
+}
+
+#upload-form input[type="file"] {   
+    padding: 10px;
+    border-radius: 8px;
+    border: 1px solid #ffffff;
+    width: 100%;
+    margin-bottom: 15px;
+    cursor: pointer;
+}
+
+#upload-form button {
+    width: 100%;
+    padding: 12px;
+    border: none;
+    border-radius: 10px;
+    background: #131c1f;
+    color: #fff;
+    font-size: 16px;
+    cursor: pointer;
+    transition: all 0.3s;
+}
+
+#upload-form button:hover {
+    background: #233a41;
+    transform: translateY(-2px);
+}
+
+#results p {
+    background: #f1f2f6;
+    padding: 12px 15px;
+    border-radius: 10px;
+    margin: 8px 0;
+    font-size: 15px;
+    color: #131c1f;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+}
+
+        
+.download-report {
+    position: relative;
+    display: inline-block;
+    margin-top: 6px;
+}
+
+.dropdown-content {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    background: #4a647d;
+    border: 1px solid #ccc;
+    min-width: 120px;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+    z-index: 1000;
+    display: none;
+}
+
+.dropdown-content button {
+    width: 100%;
+    padding: 8px 10px;
+    border: none;
+    background: none;
+    cursor: pointer;
+    text-align: left;
+}
+
+.dropdown-content button:hover {
+    background-color: #2a3f5b;
+}
+
+
+    
+@media(max-width:768px){
+    .container{
+        flex-direction: column;
+    }
+    .sidebar{
+        width: 100%;
+        flex-direction: row;
+        justify-content: space-around;
+        padding: 20px 10px;
+    }
+    .main-content{
+        padding: 20px 10px;
+    }
+}
+
+
+

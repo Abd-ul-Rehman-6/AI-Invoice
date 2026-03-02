@@ -1,0 +1,81 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+}
+
+body {
+    height: 100vh;
+    background: linear-gradient(135deg, #abbcdc);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+/* Card */
+.container {
+    background: #ffffff;
+    width: 360px;
+    padding: 70px;
+    border-radius: 12px;
+    box-shadow: 0 20px 40px rgba(0,0,0,0.25);
+    text-align: center;
+}
+
+.container h2 {
+    margin-bottom: 20px;
+    color: #0f172a;
+}
+
+.container input {
+    width: 100%;
+    padding: 12px;
+    margin-bottom: 12px;
+    border-radius: 8px;
+    border: 1px solid #cbd5e1;
+    outline: none;
+    font-size: 14px;
+}
+
+.container input:focus {
+    border-color: #2563eb;
+}
+
+.container button {
+    width: 100%;
+    padding: 12px;
+    border-radius: 8px;
+    border: none;
+    background: #1e3c72;
+    color: #fff;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: 0.3s;
+}
+
+.container button:hover {
+    background: #16305a;
+}
+
+#msg {
+    margin-top: 12px;
+    font-size: 14px;
+}
+
+.container p {
+    margin-top: 15px;
+    font-size: 14px;
+    color: #475569;
+}
+
+.container a {
+    color: #2563eb;
+    text-decoration: none;
+    font-weight: 500;
+}
+
+.container a:hover {
+    text-decoration: underline;
+}

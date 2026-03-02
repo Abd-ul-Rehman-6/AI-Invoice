@@ -1,0 +1,48 @@
+<div class="audit-results-container">
+    
+    <h2 class="mb-4">Audit Report Findings</h2>
+
+    {% if details.get('invoices') %}
+        {% for invoice in details.get('invoices') %}
+        <div class="audit-card mb-4" style="border-left: 8px solid {{ 'red' if invoice.get('risk_level') == 'High' else '#28a745' }}; padding: 20px; background: #fff; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+            <div class="row">
+                <div class="col-md-3">
+                    <label class="text-muted small d-block">Vendor Name</label>
+                    <p class="fw-bold">{{ invoice.get('vendor_name', 'Not Found') }}</p>
+                </div>
+                <div class="col-md-3">
+                    <label class="text-muted small d-block">Invoice Number</label>
+                    <p>{{ invoice.get('invoice_number', 'N/A') }}</p>
+                </div>
+                <div class="col-md-3">
+                    <label class="text-muted small d-block">Total Amount</label>
+                    <p>${{ "{:,.2f}".format(invoice.get('total_amount', 0)) }}</p>
+                </div>
+                <div class="col-md-3">
+                    <label class="text-muted small d-block">Risk Status</label>
+                    <span class="badge {{ 'bg-danger' if invoice.get('risk_level') == 'High' else 'bg-success' }}">
+                        {{ invoice.get('risk_level', 'Low') }}
+                    </span>
+                </div>
+            </div>
+
+            <div class="mt-3">
+                <label class="text-muted small d-block">Invoice Details & Logic</label>
+                <p>{{ invoice.get('risk_explanation', 'Calculations verified.') }}</p>
+            </div>
+        </div>
+        {% endfor %}
+    {% else %}
+        <div class="alert alert-warning">No itemized invoices found in the audit data.</div>
+    {% endif %}
+
+    {% if details.get('overall_summary') %}
+    <div class="executive-summary-box mt-5 p-4" style="background: #f8f9fa; border-radius: 12px; border: 1px solid #dee2e6;">
+        <h3 class="h5 border-bottom pb-2 mb-3">📋 Executive Audit Summary</h3>
+        <p class="lead" style="font-size: 1.1rem; color: #333;">
+            {{ details.get('overall_summary') }}
+        </p>
+    </div>
+    {% endif %}
+
+</div>

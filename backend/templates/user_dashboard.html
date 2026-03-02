@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>User Dashboard</title>
+    <link rel="stylesheet" href="/static/css/user_dashboard.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+</head>
+<body>
+<div class="container">
+    <div class="sidebar">
+        <h2>User Dashboard</h2>
+        <div class="menu">
+            <button id="upload-btn">Upload Invoice</button>
+            <button id="results-btn">View Latest Result</button>
+            <button id="history-btn">History</button>
+            <button class="logout-btn" onclick="logout()">Logout</button>
+        </div>
+    </div>
+    <div class="main-content">
+        <div id="upload-section" class="content-section" style="display:none;">
+            <h3>Upload Invoices</h3>
+            <form id="upload-form" enctype="multipart/form-data">
+                <input type="file" id="invoice-files" name="files" multiple accept=".pdf,.csv,.xlsx">
+                <span id="file-names">No file chosen</span><br>
+                <small>Allowed: PDF, CSV, XLSX (Max 10MB each)</small><br>
+                <button type="submit">Upload</button>
+            </form>
+            <div id="upload-status"></div>
+        </div>
+
+        <div id="results-section" class="content-section" style="display:none;">
+            <h3>Latest Processed Invoice</h3>
+            <div id="results"></div>
+        </div>
+
+        <div id="history-section" class="content-section" style="display:none;">
+            <h3>Upload History</h3>
+            <div id="history"></div>
+        </div>
+    </div>
+</div>
+
+<script>
+/*TOGGLE SECTIONS*/
+const uploadBtn = document.getElementById("upload-btn");
+const resultsBtn = document.getElementById("results-btn");
+const historyBtn = document.getElementById("history-btn");
+const uploadSection = document.getElementById("upload-section");
+const resultsSection = document.getElementById("results-section");
+const historySection = document.getElementById("history-section");
+const filesInput = document.getElementById("invoice-files");
+const fileNamesSpan = document.getElementById("file-names");
+const statusDiv = document.getElementById("upload-status");
+const resultsDiv = document.getElementById("results");
+const historyDiv = document.getElementById("history");
+
+uploadBtn.addEventListener("click", () => {
+    uploadSection.style.display = "block";
+    resultsSection.style.display = "none";
+    historySection.style.display = "none";
+});
+resultsBtn.addEventListener("click", () => {
+    uploadSection.style.display = "none";
+    resultsSection.style.display = "block";
+    historySection.style.display = "none";
+    fetchLatest();
+});
+historyBtn.addEventListener("click", () => {
+    uploadSection.style.display = "none";
+    resultsSection.style.display = "none";
+    historySection.style.display = "block";
+    fetchHistory();
+});
+
+filesInput.addEventListener("change", () => {
+    const files = Array.from(filesInput.files).map(f => f.name).join(", ");
+    fileNamesSpan.innerText = files || "No file chosen";
+});
+
+function renderInvoiceHTML(inv) {
+    let aiData;
+    try {
+        aiData = JSON.parse(inv.ai_explanation);
+    } catch (e) {
+        aiData = { invoices: [] };
+    }
+
+    const invoices = aiData.invoices || [];
+    let allContent = "";
+
+    invoices.forEach(item => {
+        let riskColor = item.risk_level === "High" ? "#ff4d4d" : "#2ecc71";
+        let forensicStatus = "";
+        if (item.tampering_detected === "Yes") {
+            forensicStatus = `
+                <div style="background: #fff5f5; border-left: 5px solid #c53030; padding: 12px; border-radius: 6px; margin-bottom: 15px; color: #c53030; text-align: left;">
+                    <strong style="color: #c53030;">⚠️ FORENSIC ALERT: Possible Tampering Detected</strong><br>
+                    <span style="font-size: 13px; color: #742a2a;"><b>Issue:</b> ${item.tampering_reason}</span>
+                </div>`;
+        } else {
+            forensicStatus = `
+                <div style="background: #f0fff4; border-left: 5px solid #2ecc71; padding: 10px; border-radius: 6px; margin-bottom: 15px; color: #276749; text-align: left;">
+                    <strong style="color: #2f855a;">✅ FILE VERIFIED:</strong> 
+                    <span style="font-size: 13px;">Document structure, alignments, and fonts appear authentic. No signs of manual editing found.</span>
+                </div>`;
+        }
+        
+        allContent += `
+            <tr style="background: ${item.risk_level === 'High' ? '#fff9f9' : 'white'}; border-bottom: 2px solid #eee;">
+                <td style="padding:15px; vertical-align:middle; width:25%;">
+                    <strong style="font-size:16px;">${item.vendor_name || 'N/A'}</strong><br>
+                    <span style="background:${riskColor}; color:white; padding:3px 10px; border-radius:4px; font-size:11px; font-weight:bold; display:inline-block; margin-top:5px;">${item.risk_level} RISK</span>
+                </td>
+                <td style="padding:15px; vertical-align:middle; text-align:center; width:20%;">
+                    <div style="border: 2px solid #34495e; padding: 6px 12px; border-radius: 6px; font-weight: bold; color: #2c3e50; display:inline-block;">
+                        ${item.invoice_number || 'N/A'}
+                    </div>
+                </td>
+                <td style="padding:15px; vertical-align:middle; font-weight:bold; font-size:18px;">$${item.total_amount || '0.00'}</td>
+                <td style="padding:15px; vertical-align:middle;">
+                     <span style="color: ${riskColor}; font-weight: bold;">
+                        ${item.risk_level === 'High' ? '❌ Audit/Forensic Issue' : '✅ Verified'}
+                     </span>
+                </td>
+            </tr>
+            <tr>
+                <td colspan="4" style="padding:20px; background: ${item.risk_level === 'High' ? '#fff9f9' : 'white'};">
+                    <div style="background: white; border: 1px solid #ddd; padding: 20px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.05);">
+                        ${forensicStatus} 
+                        ${item.detailed_review || "No breakdown available."}
+                    </div>
+                </td>
+            </tr>`;
+    });
+
+    return `
+       <div style="background:white; border-radius:12px; padding:20px; box-shadow:0 4px 15px rgba(0,0,0,0.1); margin-top:20px;">
+            <h3 style="color:#333; border-bottom:3px solid #007bff; padding-bottom:10px; margin-bottom:15px;">🔍 Audit & Forensic Report</h3>
+            <table style="width:100%; border-collapse:collapse; text-align:left;">
+                <thead style="background:#2c3e50; color:white;">
+                    <tr><th>Vendor / Risk</th><th style="text-align:center;">Invoice No</th><th>Total Amount</th><th>Status</th></tr>
+                </thead>
+                <tbody>${allContent}</tbody>
+            </table>
+            
+            <div style="margin-top:20px; display: flex; gap: 10px;">
+                <button onclick="toggleDownloadDropdown(${inv.id})" style="background:#007bff; color:white; border:none; padding:12px 25px; border-radius:8px; cursor:pointer; font-weight:bold;">Download Report ▼</button>
+                <button onclick="deleteInvoice(${inv.id})" style="background:#ff4d4d; color:white; border:none; padding:12px 25px; border-radius:8px; cursor:pointer; font-weight:bold;">Delete</button>
+            </div>
+        </div>`;
+}
+
+function toggleDownloadDropdown(id) {
+    const allMenus = document.querySelectorAll('[id^="download-options-"]');
+    allMenus.forEach(menu => {
+        if (menu.id !== `download-options-${id}`) menu.style.display = 'none';
+    });
+    const dropdown = document.getElementById(`download-options-${id}`);
+    if (dropdown) {
+        dropdown.style.display = (dropdown.style.display === "block") ? "none" : "block";
+    }
+}
+
+/* DELETE FUNCTION - FIXED TOKEN LOGIC */
+function deleteInvoice(invoiceId) {
+    if (confirm("Are you sure you want to delete this invoice?")) {
+        const token = localStorage.getItem("token"); // Use local storage token
+        fetch(`/user/invoice/${invoiceId}/delete`, {
+            method: 'DELETE',
+            headers: {
+                'Authorization': 'Bearer ' + token 
+            }
+        })
+        .then(response => {
+            if(!response.ok) throw new Error("Failed to delete.");
+            return response.json();
+        })
+        .then(data => {
+            alert("Deleted successfully!");
+            location.reload(); 
+        })
+        .catch(err => alert(err.message));
+    }
+}
+
+/*MULTI FILE UPLOAD*/
+document.getElementById("upload-form").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    statusDiv.innerHTML = "";
+    if (filesInput.files.length === 0) {
+        statusDiv.innerHTML = "<p style='color:red'>Please select at least one file.</p>";
+        return;
+    }
+    const formData = new FormData();
+    for (let file of filesInput.files) formData.append("files", file);
+    const token = localStorage.getItem("token");
+    statusDiv.innerHTML = "<p>Uploading...</p>";
+
+    try {
+        const res = await fetch("/user/upload", {
+            method: "POST",
+            headers: { "Authorization": "Bearer " + token },
+            body: formData
+        });
+        if (!res.ok) throw new Error(await res.text());
+        const data = await res.json();
+        statusDiv.innerHTML = "";
+        data.uploaded_files?.forEach(f => statusDiv.innerHTML += `<p style='color:green'>✔ ${f} uploaded</p>`);
+        data.errors?.forEach(err => statusDiv.innerHTML += `<p style='color:red'>✖ ${err}</p>`);
+        filesInput.value = "";
+        fileNamesSpan.innerText = "No file chosen";
+        
+        resultsSection.style.display = "block";
+        uploadSection.style.display = "none";
+        fetchLatest();
+    } catch (err) {
+        statusDiv.innerHTML = `<p style='color:red'>Upload failed: ${err}</p>`;
+    }
+});
+
+/*FETCH LATEST RESULT*/
+async function fetchLatest() {
+    const token = localStorage.getItem("token");
+    const res = await fetch("/user/results", { headers: { "Authorization": "Bearer " + token } });
+    if (!res.ok) return resultsDiv.innerHTML = `<p style="color:red">Failed: ${await res.text()}</p>`;
+    const data = await res.json();
+    resultsDiv.innerHTML = "";
+    const invoices = data.invoices || [];
+    if (!invoices.length) return resultsDiv.innerHTML = "<p>No processed invoices yet.</p>";
+    
+    const inv = invoices[invoices.length-1];
+    const container = document.createElement("div");
+    container.innerHTML = renderInvoiceHTML(inv);
+    resultsDiv.appendChild(container);
+    setupDropdown(inv.id);
+}
+
+/*FETCH HISTORY*/
+async function fetchHistory() {
+    const token = localStorage.getItem("token");
+    const res = await fetch("/user/results", { headers: { "Authorization": "Bearer " + token } });
+    if (!res.ok) return historyDiv.innerHTML = `<p style="color:red">Failed: ${await res.text()}</p>`;
+    const data = await res.json();
+    historyDiv.innerHTML = "";
+    const invoices = data.invoices || [];
+    if (!invoices.length) return historyDiv.innerHTML = "<p>No uploaded invoices.</p>";
+
+    invoices.forEach(inv => {
+        const container = document.createElement("div");
+        container.innerHTML = renderInvoiceHTML(inv);
+        historyDiv.appendChild(container);
+        setupDropdown(inv.id);
+    });
+}
+
+function downloadInvoice(invoiceId, format) {
+    const token = localStorage.getItem("token");
+    if (!token) { 
+        alert("Session expired. Please login."); 
+        window.location.href="/login"; 
+        return; 
+    }
+    fetch(`/user/invoice/${invoiceId}/download?format=${format}`, {
+        method: 'GET',
+        headers: { 
+            "Authorization": "Bearer " + token 
+        }
+    })
+    .then(res => {
+        if (res.status === 401) throw new Error("Unauthorized: Please login again.");
+        if (!res.ok) throw new Error("Download failed.");
+        return res.blob();
+    })
+    .then(blob => {
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `Audit_Report_${invoiceId}.pdf`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(url);
+    })
+    .catch(err => alert(err.message));
+}
+
+function logout() {
+    localStorage.clear();
+    window.location.href = "/login";
+}
+
+function setupDropdown(id) {
+    
+}
+
+window.onclick = function(event) {
+    if (!event.target.matches('button')) {
+        const allMenus = document.querySelectorAll('[id^="download-options-"]');
+        allMenus.forEach(menu => menu.style.display = 'none');
+    }
+}
+</script>
+</body>
+</html>

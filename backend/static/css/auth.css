@@ -1,0 +1,81 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: 'Arial', sans-serif;
+}
+
+html, body {
+    height: 100%;
+    background: linear-gradient(135deg, #abbcdc);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.container {
+    background: #fff;
+    width: 420px;
+    max-width: 95%;
+    padding: 70px 50px;
+    border-radius: 15px;
+    box-shadow: 0 15px 30px rgba(0,0,0,0.3);
+    text-align: center;
+}
+
+.container h2 {
+    color: #1e3c72;
+    margin-bottom: 30px;
+    font-size: 26px;
+}
+
+.container input {
+    width: 100%;
+    padding: 12px 15px;
+    margin-bottom: 20px;
+    border-radius: 8px;
+    border: 1px solid #ccc;
+    font-size: 14px;
+    transition: all 0.3s;
+}
+
+.container input:focus {
+    border-color: #1e3c72;
+    box-shadow: 0 0 8px rgba(30,60,114,0.4);
+    outline: none;
+}
+
+.container button {
+    width: 100%;
+    padding: 12px;
+    background: #1e3c72;
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    font-size: 16px;
+    cursor: pointer;
+    transition: all 0.3s;
+}
+
+.container button:hover {
+    background: #16305a;
+}
+
+p#msg {
+    margin-top: 15px;
+    font-size: 14px;
+}
+
+p.small-link {
+    margin-top: 10px;
+    font-size: 13px;
+}
+
+p.small-link a {
+    color: #1e3c72;
+    text-decoration: none;
+}
+
+p.small-link a:hover {
+    text-decoration: underline;
+}

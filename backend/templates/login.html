@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Login</title>
+    <link rel="stylesheet" href="/static/css/auth.css">
+</head>
+<body>
+    <div class="container">
+        <h2>Login</h2>
+
+        <input type="email" id="email" placeholder="Email" autocomplete="off" required>
+        <input type="password" id="password" placeholder="Password" autocomplete="new-password" required>
+
+        <button onclick="login()">Login</button>
+
+        <p class="small-link">
+            Don't have an account? <a href="/register">Register here</a>
+        </p>
+
+        <p id="msg"></p>
+    </div>
+
+    <script>
+    async function login() {
+        const emailEl = document.getElementById("email");
+        const passwordEl = document.getElementById("password");
+        const msgEl = document.getElementById("msg");
+
+        // Basic validation
+        if (!emailEl.value || !passwordEl.value) {
+            msgEl.innerText = "Please enter both email and password.";
+            msgEl.style.color = "red";
+            return;
+        }
+
+        try {
+            const res = await fetch("/auth/login", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    email: emailEl.value,
+                    password: passwordEl.value
+                })
+            });
+
+            const data = await res.json();
+
+            if (res.ok && data.token) {
+                localStorage.setItem("token", data.token);
+                localStorage.setItem("role", data.role);
+                
+                msgEl.innerText = "Login successful!";
+                msgEl.style.color = "green";
+
+                window.location.href = data.redirect;
+            } else {
+                msgEl.innerText = data.error || "Invalid email or password";
+                msgEl.style.color = "red";
+            }
+        } catch (err) {
+            msgEl.innerText = "Connection error. Please try again.";
+            msgEl.style.color = "red";
+        }
+    }
+  function logout() {
+    localStorage.removeItem("token");
+    localStorage.removeItem("role");
+    
+
+    window.location.href = "/login"; 
+}
+</script>
+</body>
+</html>

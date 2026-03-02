@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Admin Dashboard</title>
+    <link rel="stylesheet" href="/static/css/admin_dashboard.css">
+</head>
+<body>
+
+<div class="header">
+    <h2>Admin Dashboard</h2>
+    <button class="logout" onclick="logout()">Logout</button>
+</div>
+
+<!-- 🔹 STATS CARDS -->
+<div class="cards">
+    <div class="card">
+        <h3 id="total-users">0</h3>
+        <p>Total Users</p>
+    </div>
+    <div class="card">
+        <h3 id="total-invoices">0</h3>
+        <p>Total Invoices</p>
+    </div>
+    <div class="card">
+        <h3 id="total-reports">0</h3>
+        <p>Total Reports</p>
+    </div>
+</div>
+
+<!-- 🔹 ADMIN ACTION CARDS -->
+<div class="action-card">
+    <div class="action-header" onclick="toggleAccordion(this.parentElement)">
+        <h3>Manage Users</h3>
+        <span>▼</span>
+    </div>
+
+    <div class="action-body">
+        <button onclick="goTo('/dashboard/admin/users')">View Users</button>
+        
+    </div>
+</div>
+</div>
+
+<script>
+const token = localStorage.getItem("token");
+if (!token) {
+    alert("Session expired. Please login.");
+    window.location.href = "/admin-login";
+}
+
+/*SAFE NAVIGATION*/
+function goTo(path) {
+    if (!localStorage.getItem("token")) {
+        alert("Session expired. Login again.");
+        window.location.href = "/admin-login";
+        return;
+    }
+    window.location.href = path;
+}
+
+/*LOAD STATS*/
+async function loadStats() {
+    try {
+        const res = await fetch("/dashboard/admin/stats", {
+            headers: { "Authorization": `Bearer ${token}` }
+        });
+
+        if (!res.ok) {
+            console.error("Stats fetch failed", res.status);
+            return;
+        }
+
+        const data = await res.json();
+        document.getElementById("total-users").innerText = data.total_users ?? 0;
+        document.getElementById("total-invoices").innerText = data.total_invoices ?? 0;
+        document.getElementById("total-reports").innerText = data.total_reports ?? 0;
+    } catch (err) {
+        console.error("Error loading stats:", err);
+        alert("Error loading dashboard stats. Please refresh.");
+    }
+}
+
+/*LOAD LOGIN LOGS*/
+async function loadLogs() {
+    try {
+        const res = await fetch("/dashboard/admin/dashboard", {
+            headers: { "Authorization": `Bearer ${token}` }
+        });
+
+        if (!res.ok) {
+            console.error("Login logs fetch failed", res.status);
+            return;
+        }
+
+        const data = await res.json();
+        const tbody = document.getElementById("logs-body");
+        if (!tbody) return;
+
+        tbody.innerHTML = "";
+
+        if (Array.isArray(data.login_logs) && data.login_logs.length > 0) {
+            data.login_logs.forEach(log => {
+                const tr = document.createElement("tr");
+                tr.innerHTML = `
+                    <td>${log.user ?? ""}</td>
+                    <td>${log.email ?? ""}</td>
+                    <td>${log.role ?? ""}</td>
+                    <td>${log.time ?? ""}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+        } else {
+            tbody.innerHTML = `<tr><td colspan="4">No logs found</td></tr>`;
+        }
+    } catch (err) {
+        console.error("Error loading logs:", err);
+    }
+}
+
+
+
+
+/*ACCORDION */
+function toggleAccordion(el) {
+    document.querySelectorAll(".action-card").forEach(card => {
+        if (card !== el) card.classList.remove("active");
+    });
+    el.classList.toggle("active");
+}
+
+/*LOGOUT */
+function logout() {
+    localStorage.clear();
+    window.location.href = "/login";
+}
+
+/*PAGE LOAD */
+document.addEventListener("DOMContentLoaded", () => {
+    loadStats();
+    loadLogs();
+
+    // Auto-load ALL reports page 
+    const reportsTable = document.querySelector("#reports-table");
+    if (reportsTable) {
+        // Check if risky or all using body data
+        const isRisky = document.body.dataset.risky === "true";
+        loadReports(isRisky);
+    }
+});
+</script>
+
+
+
+
+</body>
+</html>
