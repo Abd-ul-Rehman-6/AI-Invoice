@@ -69,8 +69,12 @@ function UploadCard() {
   const [uploadSuccess, setUploadSuccess] = useState(false);
   const [uploadedFiles, setUploadedFiles] = useState([]);
   const [fileDetails, setFileDetails] = useState([]); // processed_results from API
+  const [detectedVendor, setDetectedVendor] = useState(""); // name extracted from invoice
   const [popup, setPopup] = useState({ open: false, type: "success", title: "", body: "" });
   const fileInputRef                    = useRef(null);
+  
+  // Add ref for the file details section
+  const fileDetailsRef = useRef(null);
 
   const performUpload = useCallback(async (files) => {
     const token =
@@ -128,7 +132,9 @@ function UploadCard() {
       
       setMessage(
         uploadedCount > 0
-          ? `Uploaded ${uploadedCount} file(s) successfully.`
+          ? `Uploaded ${uploadedCount} file(s) successfully: ${fileArray
+              .map(f => f.name)
+              .join(", ")}`
           : "No files were uploaded.",
       );
       
@@ -141,7 +147,19 @@ function UploadCard() {
       
       // Show success state
       setUploadSuccess(true);
-      setFileDetails(res.processed_results || []);
+      const details = res.processed_results || [];
+      setFileDetails(details);
+
+      // compute vendor(s) for display
+      if (details.length > 0) {
+        const names = details.map(fd => {
+          const inv = (fd.invoices || [])[0] || {};
+          return inv.vendor_name || fd.file_name || inv.filename || "Unknown";
+        });
+        setDetectedVendor(names.join(", "));
+      } else {
+        setDetectedVendor("");
+      }
 
       // Save result to localStorage
       localStorage.setItem('uploadResult', JSON.stringify(res));
@@ -170,6 +188,16 @@ function UploadCard() {
         setProgress(0);
         setLabel("Initializing AI engine...");
         setVisibleChips([]);
+        
+        // Auto-scroll to file details after upload completes
+        if (fileDetailsRef.current) {
+          setTimeout(() => {
+            fileDetailsRef.current.scrollIntoView({ 
+              behavior: 'smooth', 
+              block: 'start' 
+            });
+          }, 300); // Small delay to ensure DOM is updated
+        }
       }, 1200);
     }
   }, []);
@@ -195,6 +223,7 @@ function UploadCard() {
   const handleGoToDashboard = () => {
     window.location.href = '/dashboard';
   };
+  
   return (
     <div
       id="upload-hero"
@@ -342,10 +371,30 @@ function UploadCard() {
         </div>
       )}
 
-      {(message || error) && !uploadSuccess && (
+      {(message || error || detectedVendor) && !uploadSuccess && (
         <div style={{ marginTop: "1rem", fontSize: "0.8rem" }}>
           {message && (
             <p style={{ color: "#4ade80", marginBottom: "0.3rem" }}>{message}</p>
+          )}
+          {detectedVendor && (
+            <p style={{ color: "#e8f4ff", fontSize: "0.75rem" }}>
+              <strong>Detected vendor:</strong> {detectedVendor}
+            </p>
+          )}
+          {uploadedFiles.length > 0 && (
+            <p style={{ color: "#e8f4ff", fontSize: "0.75rem" }}>
+              <strong>File names:</strong> {uploadedFiles.join(", ")}
+            </p>
+          )}
+          {fileDetails.length > 0 && (
+            <p style={{ color: "#e8f4ff", fontSize: "0.75rem" }}>
+              <strong>Detected vendor(s):</strong> {fileDetails
+                .map(fd => {
+                  const inv = (fd.invoices || [])[0] || {};
+                  return inv.vendor_name || fd.file_name || inv.filename || "Unknown";
+                })
+                .join(", ")}
+            </p>
           )}
           {error && <p style={{ color: "#f97373" }}>{error}</p>}
         </div>
@@ -360,14 +409,14 @@ function UploadCard() {
         ))}
       </div>
 
-      {/* File details after upload */}
+      {/* File details after upload - with ref attached */}
       {fileDetails.length > 0 && (
-        <div style={{ marginTop: "2rem", width: "100%" }}>
-          <h3 style={{ fontSize: "1rem", marginBottom: "1rem", color: "#00d4ff", fontWeight: 600 }}>
-            📄 Uploaded file details
-          </h3>
-          <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
-            {fileDetails.map((item, idx) => {
+        <div ref={fileDetailsRef} style={{ marginTop: "2rem", width: "100%" }}>
+    <h3 style={{ fontSize: "1rem", marginBottom: "1rem", color: "#00d4ff", fontWeight: 600 }}>
+      📄 Uploaded file details
+    </h3>
+    <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
+      {fileDetails.map((item, idx) => {
               const inv = (item.invoices || [])[0] || {};
               const risk = (inv.risk_level || "").toLowerCase();
               // Determine badge styling
@@ -387,18 +436,32 @@ function UploadCard() {
               const tamperingDetected = inv.tampering_detected === "Yes";
               const detailsHtml = inv.detailed_review || inv.risk_explanation || "";
 
-              // Forensic status display
-              const forensicStatus = tamperingDetected ? `
-                <div style="background: #fff5f5; border-left: 5px solid #c53030; padding: 12px; border-radius: 6px; margin-bottom: 15px; color: #c53030; text-align: left;">
-                  <strong style="color: #c53030;">⚠️ FORENSIC ALERT: Possible Tampering Detected</strong><br>
-                  <span style="font-size: 13px; color: #742a2a;"><b>Issue:</b> ${inv.tampering_reason || "Document may have been altered"}</span>
-                </div>
-              ` : `
-                <div style="background: #f0fff4; border-left: 5px solid #2ecc71; padding: 12px; border-radius: 6px; margin-bottom: 15px; color: #276749; text-align: left;">
-                  <strong style="color: #2f855a;">✅ FILE VERIFIED:</strong> 
-                  <span style="font-size: 13px;">Document structure, alignments, and fonts appear authentic. No signs of manual editing found.</span>
-                </div>
-              `;
+              // UPDATED: Forensic status display - Final Audit removed, now directly shows YES/NO with red alert
+              // Forensic status display - WITH FINAL AUDIT DETAILS INSIDE
+// UPDATED: Forensic status display with Final Audit INSIDE the same box
+const forensicStatus = tamperingDetected ? `
+  <div style="background: #fff5f5; border-left: 5px solid #c53030; padding: 16px; border-radius: 8px; color: #c53030; text-align: left;">
+    <div style="margin-bottom: 12px;">
+      <strong style="color: #c53030; font-size: 1rem;">⛔ NO — FILE NOT VERIFIED</strong><br>
+      <span style="font-size: 13px; color: #742a2a;"><b>Issue:</b> ${inv.tampering_reason || "Document may have been altered"}</span>
+    </div>
+    <div style="border-top: 1px solid rgba(197, 48, 48, 0.3); padding-top: 12px; margin-top: 4px;">
+      <strong style="color: #ff7070; font-size: 0.9rem;">📢 Final Audit:</strong><br>
+      <span style="font-size: 13px; color: #e5e7eb;">Document has been tampered with. The calculated total does not match the invoice total. Mathematical errors detected.</span>
+    </div>
+  </div>
+` : `
+  <div style="background: #f0fff4; border-left: 5px solid #2ecc71; padding: 16px; border-radius: 8px; color: #276749; text-align: left;">
+    <div style="margin-bottom: 12px;">
+      <strong style="color: #2f855a; font-size: 1rem;">✅ YES — FILE VERIFIED</strong><br>
+      <span style="font-size: 13px;">Document structure, alignments, and fonts appear authentic. No signs of manual editing found.</span>
+    </div>
+    <div style="border-top: 1px solid rgba(46, 204, 113, 0.3); padding-top: 12px; margin-top: 4px;">
+      <strong style="color: #2f855a; font-size: 0.9rem;">📢 Final Audit:</strong><br>
+      <span style="font-size: 13px; color: #000000;">The calculated total matches the invoice total. The invoice appears to be valid and free of mathematical errors.</span>
+    </div>
+  </div>
+`;
 
               return (
                 <div
@@ -417,11 +480,11 @@ function UploadCard() {
                     alignItems: "center", 
                     flexWrap: "wrap", 
                     gap: 12, 
-                    marginBottom: detailsHtml ? "0.8rem" : 0 
+                    marginBottom: "0.8rem"
                   }}>
                     <div>
                       <div style={{ fontSize: "0.95rem", fontWeight: 600, color: "#e8f4ff" }}>
-                        {inv.vendor_name || "Unknown vendor"}
+                        {inv.vendor_name || inv.file_name || inv.filename || "Unknown vendor"}
                       </div>
                       <div style={{ display: "flex", gap: "8px", marginTop: 6 }}>
                         <span style={{
@@ -430,16 +493,6 @@ function UploadCard() {
                           background: badgeBg, color: badgeColor,
                         }}>
                           {inv.status_tag || inv.risk_level || "Risk"}
-                        </span>
-                        
-                        {/* Verification status badge */}
-                        <span style={{
-                          display: "inline-flex", alignItems: "center", gap: 4,
-                          borderRadius: 999, padding: "0.2rem 0.5rem", fontSize: "0.72rem", fontWeight: 600,
-                          background: tamperingDetected ? "#fee2e2" : "#dcfce7",
-                          color: tamperingDetected ? "#b91c1c" : "#166534",
-                        }}>
-                          {tamperingDetected ? "⚠️ Tampered" : "✅ Verified"}
                         </span>
                       </div>
                     </div>
@@ -456,160 +509,30 @@ function UploadCard() {
                     </div>
                   </div>
                   
-                  {/* Details section with forensic status */}
-                  {(detailsHtml || tamperingDetected) && (
-                    <div
-                      style={{
-                        marginTop: "0.8rem",
-                        padding: "0.9rem",
-                        borderRadius: 10,
-                        background: "#071222",
-                        border: "1px solid rgba(148,163,184,0.2)",
-                        color: "#e5e7eb",
-                        fontSize: "0.85rem",
-                        lineHeight: 1.6,
-                      }}
-                    >
-                      {/* Forensic status message */}
-                      <div 
-                        style={{ marginBottom: detailsHtml ? "15px" : "0" }}
-                        dangerouslySetInnerHTML={{ __html: forensicStatus }} 
-                      />
-                      
-                      {/* Detailed review content */}
-                      {detailsHtml && (
-                        <div dangerouslySetInnerHTML={{ __html: detailsHtml }} />
-                      )}
-                    </div>
-                  )}
-
+                  {/* UPDATED: Details section with forensic status at the top */}
+                  <div
+                    style={{
+                      marginTop: "0.8rem",
+                      padding: "0.9rem",
+                      borderRadius: 10,
+                      background: "#071222",
+                      border: "1px solid rgba(148,163,184,0.2)",
+                      color: "#e5e7eb",
+                      fontSize: "0.85rem",
+                      lineHeight: 1.6,
+                    }}
+                  >
+                    {/* Forensic status message - NOW AT THE TOP (Final Audit removed) */}
+                    <div dangerouslySetInnerHTML={{ __html: forensicStatus }} />
+                    
+                    {/* Detailed review content (if any) */}
+                    {detailsHtml && (
+                      <div style={{ marginTop: "15px" }} dangerouslySetInnerHTML={{ __html: detailsHtml }} />
+                    )}
+                  </div>
                 </div>
               );
             })}
-          </div>
-        </div>
-      )}
-
-      {popup.open && (
-        <div
-          onClick={() => setPopup((p) => ({ ...p, open: false }))}
-          style={{
-            position: "fixed",
-            inset: 0,
-            background: "rgba(0,0,0,0.55)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            padding: "1.2rem",
-            zIndex: 500,
-          }}
-        >
-          <div
-            onClick={(e) => e.stopPropagation()}
-            style={{
-              width: "100%",
-              maxWidth: 420,
-              borderRadius: 16,
-              background: "#071222",
-              border: "1px solid rgba(0,212,255,0.18)",
-              boxShadow: "0 30px 90px rgba(0,0,0,0.65)",
-              padding: "1.2rem 1.2rem 1rem",
-            }}
-          >
-            <div style={{ display: "flex", alignItems: "flex-start", gap: 10 }}>
-              <div
-                style={{
-                  width: 34,
-                  height: 34,
-                  borderRadius: 10,
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  background:
-                    popup.type === "error"
-                      ? "rgba(239,68,68,0.15)"
-                      : popup.type === "warning"
-                      ? "rgba(251,191,36,0.15)"
-                      : "rgba(34,197,94,0.12)",
-                  border:
-                    popup.type === "error"
-                      ? "1px solid rgba(239,68,68,0.35)"
-                      : popup.type === "warning"
-                      ? "1px solid rgba(251,191,36,0.35)"
-                      : "1px solid rgba(34,197,94,0.35)",
-                  color:
-                    popup.type === "error"
-                      ? "#fca5a5"
-                      : popup.type === "warning"
-                      ? "#fde68a"
-                      : "#86efac",
-                  flexShrink: 0,
-                }}
-              >
-                {popup.type === "error" ? "✕" : popup.type === "warning" ? "!" : "✓"}
-              </div>
-              <div style={{ flex: 1 }}>
-                <div style={{ fontWeight: 700, fontSize: "1rem", marginBottom: 6 }}>
-                  {popup.title}
-                </div>
-                <div style={{ color: "#9fb6c8", fontSize: "0.85rem", lineHeight: 1.5 }}>
-                  {popup.body}
-                </div>
-                {uploadedFiles.length > 0 && popup.type !== "error" && (
-                  <div style={{ marginTop: 10, color: "#6b8fa8", fontSize: "0.75rem" }}>
-                    {uploadedFiles.slice(0, 3).join(", ")}
-                    {uploadedFiles.length > 3 ? ` +${uploadedFiles.length - 3} more` : ""}
-                  </div>
-                )}
-              </div>
-              <button
-                onClick={() => setPopup((p) => ({ ...p, open: false }))}
-                style={{
-                  background: "transparent",
-                  border: "none",
-                  color: "#6b8fa8",
-                  cursor: "pointer",
-                  fontSize: "1.1rem",
-                  lineHeight: 1,
-                }}
-                aria-label="Close"
-              >
-                ×
-              </button>
-            </div>
-
-            <div style={{ display: "flex", gap: 10, marginTop: 14, justifyContent: "flex-end" }}>
-              <button
-                onClick={() => setPopup((p) => ({ ...p, open: false }))}
-                style={{
-                  borderRadius: 10,
-                  border: "1px solid rgba(148,163,184,0.35)",
-                  background: "transparent",
-                  color: "#e8f4ff",
-                  padding: "0.5rem 0.8rem",
-                  cursor: "pointer",
-                  fontWeight: 600,
-                  fontSize: "0.85rem",
-                }}
-              >
-                OK
-              </button>
-              <button
-                onClick={() => (window.location.href = "/dashboard")}
-                style={{
-                  borderRadius: 10,
-                  border: "none",
-                  background: "linear-gradient(135deg,#00d4ff,#0099cc)",
-                  color: "#040d1a",
-                  padding: "0.5rem 0.9rem",
-                  cursor: "pointer",
-                  fontWeight: 700,
-                  fontSize: "0.85rem",
-                }}
-              >
-                Go to dashboard
-              </button>
-            </div>
           </div>
         </div>
       )}
@@ -1166,7 +1089,7 @@ export default function InvoiceGuardPage() {
                   Our Store
                 </h3>
                 <ul style={{ listStyle: "none", padding: 0 }}>
-                  {["Home", "About", "Service", "Contact"].map((item) => (
+                  {["Home", "About", "Contact"].map((item) => (
                     <li key={item} style={{ marginBottom: "0.8rem" }}>
                       <a 
                         href={item === "Home" ? "/" : `/${item.toLowerCase()}`}
@@ -1346,7 +1269,6 @@ export default function InvoiceGuardPage() {
             </div>
           </div>
         </footer>
-
       </div>
     </>
   );

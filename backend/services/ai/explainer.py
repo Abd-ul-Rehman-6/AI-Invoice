@@ -68,9 +68,7 @@ def analyze_invoice_with_ai(invoice_path):
             --------------------------<br>
             <b>Actual Total:</b> $[Your calculated sum]<br>
             <b>Invoice Total:</b> $[Printed total from image]<br><br>
-            <div style='background: #020617; padding: 10px; border-radius: 5px; border-left: 5px solid #ffc107; text-align: left;'>
-                <b>📢 Final Audit:</b> [Write a human-like summary in simple English explaining the gap or verifying the total.]
-            </div>
+            
           "
         }
       ]

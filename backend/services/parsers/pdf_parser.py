@@ -6,6 +6,7 @@ def parse_pdf_invoice(path):
     Robust PDF parser for InvoiceIQ.
     Returns:
         {
+            "vendor_name": str,
             "invoice_number": str,
             "client_name": str,
             "line_items": [
@@ -22,6 +23,7 @@ def parse_pdf_invoice(path):
     """
 
     data = {
+        "vendor_name": None,
         "invoice_number": None,
         "client_name": None,
         "invoice_date": None,

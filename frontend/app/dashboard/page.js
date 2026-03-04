@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { apiFetch } from "../../lib/api";
+import { apiFetch, apiDownload } from "../../lib/api";
 
 export default function DashboardPage() {
   const router = useRouter();
@@ -54,6 +54,20 @@ export default function DashboardPage() {
           const results = await apiFetch("/user/results", { token });
           console.log("✅ Invoices response:", results);
           console.log("📊 Invoices array:", results.invoices);
+          
+          // Debug: Log each invoice's vendor fields
+          if (results.invoices && results.invoices.length > 0) {
+            results.invoices.forEach((inv, index) => {
+              console.log(`📝 Invoice ${index + 1}:`, {
+                id: inv.id,
+                vendor_name: inv.vendor_name,
+                client: inv.client,
+                invoice_number: inv.invoice_number,
+                total_amount: inv.total_amount
+              });
+            });
+          }
+          
           setInvoices(results.invoices || []);
         } catch (invErr) {
           console.error("❌ Invoices fetch failed:", invErr);
@@ -104,50 +118,49 @@ export default function DashboardPage() {
   async function handleDownload(invoiceId) {
     const token = localStorage.getItem("token");
     if (!token) {
+      // no token, go back to login immediately
       router.replace("/login");
       return;
     }
 
     try {
-      console.log(`📥 Downloading invoice: ${invoiceId}`);
-      
-      // Using the same API_BASE pattern as apiFetch
-      const API_BASE = ""; // Empty for proxy
-      const cleanPath = `/api/user/invoice/${invoiceId}/download`;
-      const url = `${API_BASE}${cleanPath}`;
-      
-      const res = await fetch(url, {
-        method: "GET",
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-      });
-      
-      if (res.status === 401) {
-        localStorage.removeItem("token");
-        localStorage.removeItem("userEmail");
-        router.replace("/login");
-        throw new Error("Session expired. Please login again.");
+      console.log(`📥 Downloading invoice id=${invoiceId}`);
+
+      const blob = await apiDownload(`/user/invoice/${encodeURIComponent(invoiceId)}/download`, { token });
+
+      // sanity checks in case the helper returned nothing
+      if (!blob || !(blob instanceof Blob)) {
+        throw new Error("Did not receive a file from server");
       }
-      
-      if (!res.ok) {
-        throw new Error(`Download failed with status: ${res.status}`);
+
+      if (blob.size === 0) {
+        // backend returned an empty stream – something went wrong upstream
+        throw new Error("Downloaded file is empty");
       }
-      
-      const blob = await res.blob();
-      const downloadUrl = window.URL.createObjectURL(blob);
+
+      const downloadUrl = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = downloadUrl;
       a.download = `Audit_Report_${invoiceId}.pdf`;
       document.body.appendChild(a);
       a.click();
-      a.remove();
-      window.URL.revokeObjectURL(downloadUrl);
-      
-      console.log("✅ Download complete");
+      document.body.removeChild(a);
+      URL.revokeObjectURL(downloadUrl);
+
+      console.log("✅ Download finished, bytes=", blob.size);
     } catch (err) {
       console.error("❌ Download failed:", err);
-      alert(err.message || "Download failed");
+
+      // if the error came from authentication or status code, clear token too
+      const msg = err.message || "Unknown error";
+      if (msg.includes("session has expired") || msg.includes("401") || msg.includes("Unauthorized")) {
+        localStorage.removeItem("token");
+        localStorage.removeItem("userEmail");
+        router.replace("/login");
+        return;
+      }
+
+      alert(`Download failed: ${msg}`);
     }
   }
 
@@ -500,7 +513,18 @@ export default function DashboardPage() {
                 badgeColor = "#b91c1c";
               }
 
-                const statusLabel = inv.risk_tag || "Verified";
+                const statusLabel = inv.risk_tag || "AI Detected";
+                
+                // FIX: Get vendor name from correct field (now also fall back to the uploaded file name)
+                const vendorName = inv.vendor_name || inv.client || inv.file_name || inv.filename || "Unknown vendor";
+                
+                // Debug log to see what's coming from the API
+                console.log(`Invoice ${inv.id} vendor fields:`, {
+                  vendor_name: inv.vendor_name,
+                  client: inv.client,
+                  file_name: inv.file_name,
+                  display_name: vendorName
+                });
 
                 return (
                 <div
@@ -530,10 +554,10 @@ export default function DashboardPage() {
                       alignItems: "center",
                     }}
                   >
-                    {/* Vendor / Risk Column */}
+                    {/* Vendor / Risk Column - FIXED */}
                     <div>
                       <div style={{ fontSize: "0.95rem", fontWeight: 600, marginBottom: "0.5rem" }}>
-                        {inv.client || "Unknown vendor"}
+                        {vendorName}
                       </div>
                       <div>
                         <span style={{

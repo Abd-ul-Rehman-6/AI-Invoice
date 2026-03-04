@@ -60,8 +60,20 @@ def generate_invoice_pdf(data_dict, counts, buffer):
     findings = data_dict.get('detailed_findings', [])
     if findings:
         elements.append(Paragraph("<b>Detailed Audit Findings</b>", styles["Heading3"]))
+
+        # helper to strip/normalize HTML tags that ReportLab's parser doesn't like
+        import re
+        def _sanitize(item_html: str) -> str:
+            # remove enclosing <div> blocks entirely, leave inner text
+            item_html = re.sub(r"<\/?div[^>]*>", "", item_html, flags=re.IGNORECASE)
+            # convert bare <br> tags to self-closing so parser won't treat following text as
+            # content inside the tag (which triggers "No content allowed in br tag").
+            item_html = re.sub(r"<br\s*>", "<br/>", item_html, flags=re.IGNORECASE)
+            return item_html
+
         for item in findings:
-            elements.append(Paragraph(item, styles["Normal"]))
+            safe_html = _sanitize(item)
+            elements.append(Paragraph(safe_html, styles["Normal"]))
             elements.append(Spacer(1, 5))
 
     doc.build(elements)

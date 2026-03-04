@@ -154,61 +154,86 @@ def view_results():
 @invoice_bp.route("/user/invoice/<int:invoice_id>/download", methods=["GET"])
 @jwt_required()
 def download_invoice_report(invoice_id):
-    user_id = int(get_jwt_identity())
-    invoice = Invoice.query.filter_by(id=invoice_id, user_id=user_id).first()
-    if not invoice:
-        return jsonify({"error": "Invoice not found or unauthorized"}), 404
-    report = Report.query.filter_by(invoice_id=invoice.id).first()
-    
-    if not report or not report.report_data:
-        return jsonify({"error": "No data"}), 404
+    try:
+        user_id = int(get_jwt_identity())
+        invoice = Invoice.query.filter_by(id=invoice_id, user_id=user_id).first()
+        if not invoice:
+            return jsonify({"error": "Invoice not found or unauthorized"}), 404
 
-    invoices = report.report_data.get("invoices", [])
-    
-    table_rows = []
-    detailed_findings = [] 
-    counts = {"duplicate": 0, "mismatch": 0, "suspicious": 0, "fraud": 0}
+        report = Report.query.filter_by(invoice_id=invoice.id).first()
+        if not report or not report.report_data:
+            return jsonify({"error": "No data"}), 404
 
-    for inv in invoices:
-        v_name = inv.get("vendor_name", "N/A")
-        v_id = inv.get("invoice_number", "N/A")
-        risk = inv.get("risk_level", "Low")
-        details = inv.get("audit_details", {})
-        detailed_review_text = inv.get("risk_explanation") or inv.get("detailed_review", "")
+        # report_data might come back as a JSON string depending on how SQLAlchemy
+        # serializes/stores it; ensure we have a dict before accessing .get()
+        data = report.report_data
+        if isinstance(data, str):
+            try:
+                data = json.loads(data)
+            except Exception:
+                data = {}
 
-        has_issue = "Issues Found" if (details.get("math_mismatch") or details.get("line_item_duplicates")) else "Clean"
-        table_rows.append([v_name, v_id, inv.get("total_amount", "0"), risk, has_issue])
+        invoices = data.get("invoices", [])
 
-        issue_text = ""
-        if has_issue == "Issues Found":
-            issue_text = f"<b>{v_name} (Inv: {v_id}):</b><br/>"
-            if details.get("math_mismatch"):
-                issue_text += f"• {details['math_mismatch']}<br/>"
-                counts["mismatch"] += 1
-            if details.get("line_item_duplicates"):
-                issue_text += f"• Duplicate items: {', '.join(details['line_item_duplicates'])}<br/>"
-                counts["duplicate"] += 1
-            if detailed_review_text:
-                issue_text += f"<br/><b>Detailed Review:</b><br/>{detailed_review_text}<br/>"
-        elif detailed_review_text:
-            issue_text = f"<b>{v_name} (Inv: {v_id}):</b><br/>{detailed_review_text}<br/>"
+        table_rows = []
+        detailed_findings = []
+        counts = {"duplicate": 0, "mismatch": 0, "suspicious": 0, "fraud": 0}
 
-        if risk == "High":
-            counts["suspicious"] += 1
+        for inv in invoices:
+            if not isinstance(inv, dict):
+                current_app.logger.warning("Malformed invoice item; skipping: %r", inv)
+                continue
 
-        detailed_findings.append(issue_text)
+            v_name = inv.get("vendor_name", "N/A")
+            v_id = inv.get("invoice_number", "N/A")
+            risk = inv.get("risk_level", "Low")
+            details = inv.get("audit_details", {}) or {}
+            detailed_review_text = inv.get("risk_explanation") or inv.get("detailed_review", "")
 
-    pdf_data = {
-        "client_name": invoice.client_name or "Audit Report",
-        "invoice_date": datetime.now().strftime("%b %d, %Y"),
-        "table_rows": table_rows,
-        "detailed_findings": detailed_findings 
-    }
+            has_issue = "Issues Found" if (details.get("math_mismatch") or details.get("line_item_duplicates")) else "Clean"
+            table_rows.append([v_name, v_id, inv.get("total_amount", "0"), risk, has_issue])
 
-    pdf_buffer = BytesIO()
-    generate_invoice_pdf(pdf_data, counts, pdf_buffer)
-    pdf_buffer.seek(0)
-    return send_file(pdf_buffer, mimetype="application/pdf", as_attachment=True, download_name=f"Audit_Report_{invoice_id}.pdf")
+            issue_text = ""
+            if has_issue == "Issues Found":
+                issue_text = f"<b>{v_name} (Inv: {v_id}):</b><br/>"
+                if details.get("math_mismatch"):
+                    issue_text += f"• {details['math_mismatch']}<br/>"
+                    counts["mismatch"] += 1
+                if details.get("line_item_duplicates"):
+                    dup_items = details.get("line_item_duplicates")
+                    if not isinstance(dup_items, (list, tuple)):
+                        dup_items = [str(dup_items)]
+                    issue_text += f"• Duplicate items: {', '.join(dup_items)}<br/>"
+                    counts["duplicate"] += 1
+                if detailed_review_text:
+                    issue_text += f"<br/><b>Detailed Review:</b><br/>{detailed_review_text}<br/>"
+            elif detailed_review_text:
+                issue_text = f"<b>{v_name} (Inv: {v_id}):</b><br/>{detailed_review_text}<br/>"
+
+            if risk == "High":
+                counts["suspicious"] += 1
+
+            detailed_findings.append(issue_text)
+
+        pdf_data = {
+            "client_name": invoice.client_name or "Audit Report",
+            "invoice_date": datetime.now().strftime("%b %d, %Y"),
+            "table_rows": table_rows,
+            "detailed_findings": detailed_findings,
+        }
+
+        pdf_buffer = BytesIO()
+        generate_invoice_pdf(pdf_data, counts, pdf_buffer)
+        pdf_buffer.seek(0)
+        return send_file(pdf_buffer, mimetype="application/pdf", as_attachment=True,
+                         download_name=f"Audit_Report_{invoice_id}.pdf")
+
+    except Exception as err:
+        current_app.logger.exception("Error in /user/invoice/%s/download (user %s)", invoice_id, get_jwt_identity())
+        # send the raw exception message so client can see what happened
+        msg = str(err) or "Server error generating report"
+        return jsonify({"error": msg}), 500
+
 
 @invoice_bp.route("/user/invoice/<int:invoice_id>/delete", methods=["DELETE"])
 @jwt_required()

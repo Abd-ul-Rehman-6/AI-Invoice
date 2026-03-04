@@ -39,6 +39,53 @@ async function handleResponse(res) {
   return data;
 }
 
+// Special handler for file downloads (returns blob instead of JSON)
+async function handleDownloadResponse(res) {
+  const contentType = res.headers.get("content-type") || "";
+  
+  if (!res.ok) {
+    // Handle 401 Unauthorized specifically
+    if (res.status === 401) {
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem("token");
+        localStorage.removeItem("userEmail");
+        if (!window.location.pathname.includes('/login')) {
+          window.location.href = '/login';
+        }
+      }
+      throw new Error("Your session has expired. Please log in again.");
+    }
+
+    // Try to parse error as JSON first
+    try {
+      if (contentType.includes("application/json")) {
+        const errorData = await res.json();
+        throw new Error(errorData.error || errorData.message || `Download failed with status: ${res.status}`);
+      } else {
+        const errorText = await res.text();
+        throw new Error(errorText || `Download failed with status: ${res.status}`);
+      }
+    } catch (e) {
+      throw new Error(`Download failed with status: ${res.status}`);
+    }
+  }
+
+  // Check if response is JSON (which might indicate an error)
+  if (contentType.includes("application/json")) {
+    const jsonData = await res.json();
+    // If it's JSON but also has error property, throw it
+    if (jsonData.error || jsonData.message) {
+      throw new Error(jsonData.error || jsonData.message || "Server returned JSON instead of file");
+    }
+    // If it's JSON but we expected a file, something's wrong
+    console.warn("⚠️ Expected file but got JSON:", jsonData);
+    throw new Error("Server returned JSON instead of file");
+  }
+
+  // Return blob for successful file download
+  return await res.blob();
+}
+
 export async function apiFetch(path, { method = "GET", body, token } = {}) {
   const headers = { "Content-Type": "application/json" };
   if (token) headers.Authorization = `Bearer ${token}`;
@@ -56,6 +103,24 @@ export async function apiFetch(path, { method = "GET", body, token } = {}) {
   });
   
   return handleResponse(res);
+}
+
+export async function apiDownload(path, { token }) {
+  const headers = {};
+  if (token) headers.Authorization = `Bearer ${token}`;
+
+  // Remove /api from path if it already starts with /api
+  const cleanPath = path.startsWith('/api') ? path : `/api${path}`;
+  
+  const url = `${API_BASE}${cleanPath}`;
+  console.log(`📥 API Download: GET ${url}`);
+
+  const res = await fetch(url, {
+    method: "GET",
+    headers,
+  });
+  
+  return handleDownloadResponse(res);
 }
 
 export async function apiUpload(path, { files, token }) {

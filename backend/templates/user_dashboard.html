@@ -100,18 +100,23 @@ function renderInvoiceHTML(inv) {
                 </div>`;
         } else {
             forensicStatus = `
-                <div style="background: #f0fff4; border-left: 5px solid #2ecc71; padding: 10px; border-radius: 6px; margin-bottom: 15px; color: #276749; text-align: left;">
-                    <strong style="color: #2f855a;">✅ FILE VERIFIED:</strong> 
-                    <span style="font-size: 13px;">Document structure, alignments, and fonts appear authentic. No signs of manual editing found.</span>
-                </div>`;
+    <div style="background: #f0fff4; border-left: 5px solid #2ecc71; padding: 10px; border-radius: 6px; margin-bottom: 15px; color: #276749; text-align: left;">
+        <strong style="color: #2f855a;">✅ AI Detected:</strong> 
+        <span style="font-size: 13px;">Document structure, alignments, and fonts appear authentic. No signs of manual editing found.</span>
+    </div>`;
         }
         
         allContent += `
             <tr style="background: ${item.risk_level === 'High' ? '#fff9f9' : 'white'}; border-bottom: 2px solid #eee;">
-                <td style="padding:15px; vertical-align:middle; width:25%;">
-                    <strong style="font-size:16px;">${item.vendor_name || 'N/A'}</strong><br>
-                    <span style="background:${riskColor}; color:white; padding:3px 10px; border-radius:4px; font-size:11px; font-weight:bold; display:inline-block; margin-top:5px;">${item.risk_level} RISK</span>
-                </td>
+                <td style="padding:15px; vertical-align:middle;">
+                    <strong style="font-size:16px;">
+                        ${item.vendor_name || item.file_name || item.filename || 'N/A'}
+                    </strong><br>
+                    <!-- Risk Score Badge - Separate Field -->
+                    <span style="background:${riskColor}; color:white; padding:3px 10px; border-radius:4px; font-size:11px; font-weight:bold; display:inline-block; margin-top:5px;">
+                        ${item.risk_score || item.risk_level || 'N/A'} RISK
+                    </span>
+                </td
                 <td style="padding:15px; vertical-align:middle; text-align:center; width:20%;">
                     <div style="border: 2px solid #34495e; padding: 6px 12px; border-radius: 6px; font-weight: bold; color: #2c3e50; display:inline-block;">
                         ${item.invoice_number || 'N/A'}
@@ -120,8 +125,8 @@ function renderInvoiceHTML(inv) {
                 <td style="padding:15px; vertical-align:middle; font-weight:bold; font-size:18px;">$${item.total_amount || '0.00'}</td>
                 <td style="padding:15px; vertical-align:middle;">
                      <span style="color: ${riskColor}; font-weight: bold;">
-                        ${item.risk_level === 'High' ? '❌ Audit/Forensic Issue' : '✅ Verified'}
-                     </span>
+    ${item.risk_level === 'High' ? '❌ Audit/Forensic Issue' : '✅ AI Detected'}
+</span>
                 </td>
             </tr>
             <tr>
@@ -139,7 +144,13 @@ function renderInvoiceHTML(inv) {
             <h3 style="color:#333; border-bottom:3px solid #007bff; padding-bottom:10px; margin-bottom:15px;">🔍 Audit & Forensic Report</h3>
             <table style="width:100%; border-collapse:collapse; text-align:left;">
                 <thead style="background:#2c3e50; color:white;">
-                    <tr><th>Vendor / Risk</th><th style="text-align:center;">Invoice No</th><th>Total Amount</th><th>Status</th></tr>
+             <tr>
+                <th>Vendor</th>
+                <th style="text-align:center;">Risk Score</th>
+                <th style="text-align:center;">Invoice No</th>
+                <th>Total Amount</th>
+                <th>Status</th>
+             </tr>
                 </thead>
                 <tbody>${allContent}</tbody>
             </table>

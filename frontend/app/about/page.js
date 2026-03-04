@@ -496,7 +496,7 @@ export default function AboutUsPage() {
           Our Store
         </h3>
         <ul style={{ listStyle: "none", padding: 0 }}>
-          {["Home", "About", "Service", "Contact"].map((item, index) => (
+          {["Home", "About", "Contact"].map((item, index) => (
             <li key={item} style={{ marginBottom: "0.8rem" }}>
               <Link 
                 href={item === "Home" ? "/" : `/${item.toLowerCase()}`}
